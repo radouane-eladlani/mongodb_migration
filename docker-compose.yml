@@ -1,0 +1,28 @@
+version: "3.8"  
+
+services:
+  # Conteneur MongoDB
+  mongodb:
+    image: mongo:6.0       
+    container_name: mongodb_local
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db          # Volume pour persister les données MongoDB
+      - csv_data:/data/csv           # Volume pour stocker les CSV
+    restart: unless-stopped           # Redémarre automatiquement sauf si on l'arrête manuellement
+
+  # Conteneur pour exécuter la migration
+  migration:
+    build: .                         # Construire l'image depuis le Dockerfile
+    container_name: migration_app    # Nom du conteneur
+    volumes:
+      - ./healthcare_dataset.csv:/data/csv/healthcare_dataset.csv  # Monter le CSV dans le conteneur
+    depends_on:
+      - mongodb                      # Attend que MongoDB soit démarré avant d'exécuter
+    command: python migrate.py        # Commande à exécuter à l'intérieur du conteneur
+
+# Définition des volumes persistants
+volumes:
+  mongo_data:
+  csv_data:
