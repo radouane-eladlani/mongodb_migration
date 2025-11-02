@@ -29,9 +29,19 @@ services:
       sh -c "
         echo 'Attente du démarrage de MongoDB...' &&
         sleep 10 &&
-        echo 'Lancement du script de migration et test d’intégrité...' &&
+        echo 'Lancement du script de migration...' &&
         python migrate.py
       "
+
+  # Conteneur pour automatiser le test d'intégrité
+  tests:
+    build: .                         # Construire l'image depuis le Dockerfile
+    container_name: test_app         # Nom du conteneur
+    depends_on:
+      - mongodb
+      - migration                     # Attend que MongoDB et la migration soient terminés
+    command: python test_integrity.py # Script de test d’intégrité
+
 # Définition des volumes persistants
 volumes:
   mongo_data:
