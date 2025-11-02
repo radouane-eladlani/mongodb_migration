@@ -7,6 +7,11 @@ services:
     container_name: mongodb_local
     ports:
       - "27017:27017"
+    environment:
+      # Variables d'environnement pour créer un utilisateur sécurisé
+      MONGO_INITDB_ROOT_USERNAME: data_engineer
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: hopital
     volumes:
       - mongo_data:/data/db          # Volume pour persister les données MongoDB
       - csv_data:/data/csv           # Volume pour stocker les CSV
@@ -20,8 +25,13 @@ services:
       - ./healthcare_dataset.csv:/data/csv/healthcare_dataset.csv  # Monter le CSV dans le conteneur
     depends_on:
       - mongodb                      # Attend que MongoDB soit démarré avant d'exécuter
-    command: python migrate.py        # Commande à exécuter à l'intérieur du conteneur
-
+    command: >
+      sh -c "
+        echo 'Attente du démarrage de MongoDB...' &&
+        sleep 10 &&
+        echo 'Lancement du script de migration et test d’intégrité...' &&
+        python migrate.py
+      "
 # Définition des volumes persistants
 volumes:
   mongo_data:

@@ -18,16 +18,16 @@ Le script Python `migrate.py` :
 pip3 install -r requirements.txt
 
 ## 4. Lancer MongoDB avec Docker
-4.1 Méthode simple (conteneur unique)
+
+### 4.1 Méthode simple (conteneur unique)
 Lancer MongoDB sur le port 27017 :
 docker run --name mongodb_local -d -p 27017:27017 mongo:6.0
 
-## 4.2 Vérifier que le conteneur est actif
+### 4.2 Vérifier que le conteneur est actif :
 docker ps
 
-## 4.3 Avec Docker Compose (automatiser la migration)
+### 4.3 Avec Docker Compose (automatiser la migration)
 Exemple docker-compose.yml utilisé :
-''
 version: "3.8"
 
 services:
@@ -52,37 +52,49 @@ services:
 
 volumes:
   mongo_data:
-  csv_data: 
-  ''
+  csv_data:
 
-## Lancer l’ensemble :
+### 4.4 Système d’authentification et rôles utilisateurs
+Pour sécuriser l’accès à la base MongoDB, un utilisateur est créé automatiquement via Docker Compose :
+
+Nom d’utilisateur : data_engineer
+Mot de passe : password123
+Rôle : root (accès complet à la base hopital)
+Cette configuration est définie dans le docker-compose.yml :
+
+environment:
+  MONGO_INITDB_ROOT_USERNAME: data_engineer
+  MONGO_INITDB_ROOT_PASSWORD: password123
+  MONGO_INITDB_DATABASE: hopital
+Cela permet de protéger la base et de créer facilement d’autres utilisateurs avec des droits limités (lecture seule, lecture/écriture sur certaines collections, etc.).
+
+## 5. Lancer l’ensemble
 docker-compose up --build
 
-## Vérifier les logs pour s’assurer que la migration s’est bien déroulée :
+## 6. Vérifier les logs pour s’assurer que la migration s’est bien déroulée :
 docker-compose logs migration
 
-## 5. Exécuter la migration (conteneur ou script local)
+## 7. Exécuter la migration (conteneur ou script local)
 Placer healthcare_dataset.csv dans le dossier du projet.
 
 Lancer le script Python :
-
 python3 migrate.py
 Le script insère tous les documents dans la collection patients de la base hopital.
 
-## 6. Vérifier la base et la collection
-### 6.1 Lister les bases de données
+## 8. Vérifier la base et la collection
+### 8.1 Lister les bases de données
 docker exec -it mongodb_local mongosh --eval "show dbs"
 
-### 6.2 Sélectionner la base et lister les collections
+### 8.2 Sélectionner la base et lister les collections
 docker exec -it mongodb_local mongosh --eval "db = db.getSiblingDB('hopital'); db.getCollectionNames()"
 
-### 6.3 Compter le nombre de documents
+### 8.3 Compter le nombre de documents
 docker exec -it mongodb_local mongosh --eval "db = db.getSiblingDB('hopital'); db.patients.countDocuments()"
 
-### 6.4 Voir un exemple de document
+### 8.4 Voir un exemple de document
 docker exec -it mongodb_local mongosh --eval "db = db.getSiblingDB('hopital'); db.patients.findOne()"
 
-## 7. Notes et bonnes pratiques
+## 9. Notes et bonnes pratiques
 -> La base hopital et la collection patients sont créées automatiquement par MongoDB lors de l’insertion.
 
 -> Utilisation des volumes Docker pour persistance des données et accès au CSV depuis les conteneurs.

@@ -1,7 +1,6 @@
-# Import les bibliothèques necessaires
-import pandas as pd            # Pandas pour lire et manipuler le fichier CSV
-from pymongo import MongoClient  # pymongo Pour se connecter à MongoDB
-import json                     # Pour convertir le DataFrame en dictionnaires JSON
+import pandas as pd
+from pymongo import MongoClient
+import json
 
 # -----------------------------
 # 1. Connexion à MongoDB
@@ -23,33 +22,62 @@ collection_patients = base_de_donnees["patients"]
 donnees = pd.read_csv("healthcare_dataset.csv")
 
 # -----------------------------
-# 3. Nettoyage des données
+# 3. Vérification et test d'intégrité AVANT migration
+# -----------------------------
+print("\n------------------------------")
+print("🔍 TEST D’INTÉGRITÉ AVANT MIGRATION")
+print("------------------------------")
+print("Nombre total de lignes :", len(donnees))
+print("Colonnes disponibles :", list(donnees.columns))
+print("Valeurs manquantes par colonne :")
+print(donnees.isnull().sum())
+print("Nombre de doublons :", donnees.duplicated().sum())
+print("Types de variables :")
+print(donnees.dtypes)
+
+# -----------------------------
+# 4. Nettoyage des données
 # -----------------------------
 # On supprime toutes les lignes qui sont entièrement vides
 # Cela évite d'insérer des documents vides dans MongoDB
 donnees = donnees.dropna(how="all")
 
 # -----------------------------
-# 4. Conversion en JSON
+# 5. Conversion en JSON
 # -----------------------------
 # MongoDB travaille avec des documents JSON
 # On transforme le DataFrame Pandas en liste de dictionnaires JSON
 liste_documents = json.loads(donnees.to_json(orient="records"))
 
 # -----------------------------
-# 5. Insertion des données dans MongoDB
+# 6. Insertion des données dans MongoDB
 # -----------------------------
 if liste_documents:
     # Si la liste n'est pas vide, on insère tous les documents dans la collection "patients"
     collection_patients.insert_many(liste_documents)
-    print(f"{len(liste_documents)} documents insérés dans la collection 'patients'.")
+    print(f"\n{len(liste_documents)} documents insérés dans la collection 'patients'.")
 else:
     # Si aucune donnée n'est trouvée, on affiche un message
-    print("Aucune donnée à insérer.")
+    print("\n⚠️ Aucune donnée à insérer.")
 
 # -----------------------------
-# 6. Vérification de l'insertion
+# 7. Vérification de l'insertion
 # -----------------------------
 # On récupère un document de la collection pour vérifier que l'insertion a fonctionné
-print("Exemple de document inséré :")
+print("\nExemple de document inséré :")
 print(collection_patients.find_one())
+
+# -----------------------------
+# 8. Vérification et test d'intégrité APRÈS migration
+# -----------------------------
+print("\n------------------------------")
+print("🔍 TEST D’INTÉGRITÉ APRÈS MIGRATION")
+print("------------------------------")
+nb_docs = collection_patients.count_documents({})
+print(f"Nombre total de documents dans MongoDB : {nb_docs}")
+
+# Vérification de cohérence simple
+if nb_docs == len(donnees):
+    print("Intégrité respectée : le nombre de lignes CSV = nombre de documents MongoDB")
+else:
+    print("⚠️ Alerte : incohérence détectée entre CSV et MongoDB")
