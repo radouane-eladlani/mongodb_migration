@@ -21,35 +21,58 @@ pip3 install -r requirements.txt
 
 ### 4.1 Méthode simple (conteneur unique)
 Lancer MongoDB sur le port 27017 :
-docker run --name mongodb_local -d -p 27017:27017 mongo:6.0
+docker exec -it mongodb_local mongosh
 
 ### 4.2 Vérifier que le conteneur est actif :
 docker ps
 
 ### 4.3 Avec Docker Compose (automatiser la migration)
 Exemple docker-compose.yml utilisé :
-version: "3.8"
+version: "3.8"  
 
 services:
+  # Conteneur MongoDB
   mongodb:
-    image: mongo:6.0
+    image: mongo:6.0       
     container_name: mongodb_local
     ports:
       - "27017:27017"
+    environment:
+      # Variables d'environnement pour créer un utilisateur sécurisé
+      MONGO_INITDB_ROOT_USERNAME: data_engineer
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: hopital
     volumes:
-      - mongo_data:/data/db
-      - csv_data:/data/csv
-    restart: unless-stopped
+      - mongo_data:/data/db          # Volume pour persister les données MongoDB
+      - csv_data:/data/csv           # Volume pour stocker les CSV
+    restart: unless-stopped           # Redémarre automatiquement sauf si on l'arrête manuellement
 
+  # Conteneur pour exécuter la migration
   migration:
-    build: .
-    container_name: migration_app
+    build: .                         # Construire l'image depuis le Dockerfile
+    container_name: migration_app    # Nom du conteneur
     volumes:
-      - ./healthcare_dataset.csv:/data/csv/healthcare_dataset.csv
+      - ./healthcare_dataset.csv:/data/csv/healthcare_dataset.csv  # Monter le CSV dans le conteneur
+    depends_on:
+      - mongodb                      # Attend que MongoDB soit démarré avant d'exécuter
+    command: >
+      sh -c "
+        echo 'Attente du démarrage de MongoDB...' &&
+        sleep 10 &&
+        echo 'Lancement du script de migration...' &&
+        python migrate.py
+      "
+
+  # Conteneur pour automatiser le test d'intégrité
+  tests:
+    build: .                         # Construire l'image depuis le Dockerfile
+    container_name: test_app         # Nom du conteneur
     depends_on:
       - mongodb
-    command: python migrate.py
+      - migration                     # Attend que MongoDB et la migration soient terminés
+    command: python test_integrity.py # Script de test d’intégrité
 
+# Définition des volumes persistants
 volumes:
   mongo_data:
   csv_data:
@@ -68,11 +91,14 @@ environment:
   MONGO_INITDB_DATABASE: hopital
 Cela permet de protéger la base et de créer facilement d’autres utilisateurs avec des droits limités (lecture seule, lecture/écriture sur certaines collections, etc.).
 
-## 5. Lancer l’ensemble
+## 5. Lancer l’ensemble 
 docker-compose up --build
 
 ## 6. Vérifier les logs pour s’assurer que la migration s’est bien déroulée :
 docker-compose logs migration
+
+## 6.1 lancer un test :
+docker-compose run --rm tests
 
 ## 7. Exécuter la migration (conteneur ou script local)
 Placer healthcare_dataset.csv dans le dossier du projet.
