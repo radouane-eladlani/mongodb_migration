@@ -8,8 +8,9 @@ WORKDIR /app
 COPY requirements.txt .
 
 # On installe les dépendances Python nécessaires (pandas, pymongo, etc.)
-RUN pip install --no-cache-dir -r requirements.txt
-
+# Installer pandas, pymongo et pytest
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir pytest
 # On copie tous les fichiers de notre projet dans le conteneur
 COPY . .
 

@@ -21,7 +21,7 @@ pip3 install -r requirements.txt
 
 ### 4.1 Méthode simple (conteneur unique)
 Lancer MongoDB sur le port 27017 :
-docker exec -it mongodb_local mongosh
+docker exec -it mongodb_local mongosh -u data_engineer -p password123 --authenticationDatabase admin
 
 ### 4.2 Vérifier que le conteneur est actif :
 docker ps
@@ -63,14 +63,24 @@ services:
         python migrate.py
       "
 
-  # Conteneur pour automatiser le test d'intégrité
-  tests:
-    build: .                         # Construire l'image depuis le Dockerfile
-    container_name: test_app         # Nom du conteneur
+  # Conteneur pour automatiser le test d'intégrité before
+  test_before:
+    build: .
+    container_name: test_before_app
+    # Exécuter Pytest sur les tests d'intégrité avant migration
+    command: pytest test_integrity_before.py
+    volumes:
+      - ./healthcare_dataset.csv:/app/healthcare_dataset.csv
+
+  # Conteneur pour automatiser le test d'intégrité before
+  test_after:
+    build: .
+    container_name: test_after_app
     depends_on:
       - mongodb
-      - migration                     # Attend que MongoDB et la migration soient terminés
-    command: python test_integrity.py # Script de test d’intégrité
+      - migration
+    # Exécuter Pytest sur les tests d'intégrité après migration
+    command: pytest test_integrity_after.py
 
 # Définition des volumes persistants
 volumes:
@@ -97,8 +107,12 @@ docker-compose up --build
 ## 6. Vérifier les logs pour s’assurer que la migration s’est bien déroulée :
 docker-compose logs migration
 
-## 6.1 lancer un test :
-docker-compose run --rm tests
+## 6.1 lancer les tests :
+### Tester avant la migration
+docker start -a test_before_app
+
+### Tester après la migration
+docker start -a test_after_app
 
 ## 7. Exécuter la migration (conteneur ou script local)
 Placer healthcare_dataset.csv dans le dossier du projet.
